@@ -1,32 +1,38 @@
-import { Fragment } from "react";
+import { MongoClient, ObjectId } from "mongodb";
 import MeetupDetail from "../../components/meetups/MeetupDetail";
 
-function MeetupDetails() {
+function MeetupDetails(props) {
   return (
     <MeetupDetail
-      image="https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg/800px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg"
-      title="First Meetup"
-      address="Some Street 5, Some City"
-      description="This is the first meetup"
+      image={props.meetupData.image}
+      title={props.meetupData.title}
+      address={props.meetupData.address}
+      description={props.meetupData.description}
     />
   );
 }
 
 export async function getStaticPaths() {
+  const client = await MongoClient.connect(
+    "mongodb+srv://admin:admin@cluster0.xkrycyt.mongodb.net/?retryWrites=true&w=majority"
+  );
+  const db = client.db();
+
+  const meetupsCollection = db.collection("meetups");
+
+  //filter, which fields
+  //csak az id, semmi más
+  const meetups = await meetupsCollection.find({}, { _id: 1 }).toArray();
+
+  client.close();
+
   return {
     fallback: false,
-    paths: [
-      {
-        params: {
-          meetupId: "m1",
-        },
+    paths: meetups.map((meetup) => ({
+      params: {
+        meetupId: meetup._id.toString(),
       },
-      {
-        params: {
-          meetupId: "m2",
-        },
-      },
-    ],
+    })),
   };
 }
 
@@ -35,16 +41,29 @@ export async function getStaticProps(context) {
 
   const meetupId = context.params.meetupId; //url-ben lévő params
 
+  const client = await MongoClient.connect(
+    "mongodb+srv://admin:admin@cluster0.xkrycyt.mongodb.net/?retryWrites=true&w=majority"
+  );
+  const db = client.db();
+
+  const meetupsCollection = db.collection("meetups");
+
+  const selectedMeetup = await meetupsCollection.findOne({
+    _id: new ObjectId(meetupId),
+  });
+
+  client.close();
+
   return {
     props: {
       meetupData: {
-        image:
-          "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg/800px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg",
-        id: meetupId,
-        title: "First Meetup",
-        address: "Some Street 5, Some City",
-        description: "This is the first meetup",
+        id: selectedMeetup._id.toString(),
+        title: selectedMeetup.title.toString(),
+        address: selectedMeetup.address.toString(),
+        image: selectedMeetup.image.toString(),
+        description: selectedMeetup.description.toString(),
       },
+      /* JSON.parse(JSON.stringify(selectedMeetup)) */
     },
   };
 }
